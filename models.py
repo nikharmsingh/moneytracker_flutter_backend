@@ -16,6 +16,7 @@ class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data['_id'])
         self.email = user_data['email']
+        self.username = user_data['username']
         self.password = user_data['password']
 
     @staticmethod
@@ -29,9 +30,15 @@ class User(UserMixin):
         return User(user_data) if user_data else None
 
     @staticmethod
-    def create(email, password):
+    def get_by_username(username):
+        user_data = db.users.find_one({'username': username})
+        return User(user_data) if user_data else None
+
+    @staticmethod
+    def create(email, username, password):
         user_data = {
             'email': email,
+            'username': username,
             'password': password
         }
         result = db.users.insert_one(user_data)

@@ -120,12 +120,17 @@ def login():
 def register():
     data = request.get_json()
     email = data.get('email')
+    username = data.get('username')
     password = data.get('password')
     confirm_password = data.get('confirm_password')
     
     # Validate email format
     if not email or '@' not in email or '.' not in email:
         return jsonify({'message': 'Invalid email format'}), 400
+    
+    # Validate username
+    if not username or len(username) < 3:
+        return jsonify({'message': 'Username must be at least 3 characters long'}), 400
     
     if not password or len(password) < 6:
         return jsonify({'message': 'Password must be at least 6 characters long'}), 400
@@ -136,15 +141,19 @@ def register():
     if User.get_by_email(email):
         return jsonify({'message': 'Email already exists'}), 400
     
+    if User.get_by_username(username):
+        return jsonify({'message': 'Username already exists'}), 400
+    
     hashed_password = generate_password_hash(password)
-    user = User.create(email, hashed_password)
+    user = User.create(email, username, hashed_password)
     
     token = generate_token(user)
     return jsonify({
         'message': 'Registration successful',
         'user': {
             'id': user.id,
-            'email': user.email
+            'email': user.email,
+            'username': user.username
         },
         'token': token
     }), 201
