@@ -441,8 +441,14 @@ def delete_category(user, id):
             return jsonify({'message': 'Category not found'}), 404
         if cat.get('is_global', False):
             return jsonify({'message': 'Cannot delete global category'}), 403
-        if cat.get('user_id') != user.id:
+        
+        # Convert both IDs to string for comparison
+        category_user_id = str(cat.get('user_id'))
+        current_user_id = str(user.id)
+        
+        if category_user_id != current_user_id:
             return jsonify({'message': 'You can only delete your own categories'}), 403
+            
         Category.delete(id, user.id)
         return jsonify({'message': 'Category deleted successfully'})
     except Exception as e:
