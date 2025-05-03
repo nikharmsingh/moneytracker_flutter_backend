@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Monthly Salary Overview</h2>
+
+  <!-- Current Month Information -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">Current Month Details</h5>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card bg-light">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2 text-muted">Month Salary - {{ current_month_name }}</h6>
+              <h3 class="card-text">₹{{ current_salary|default(0)|int|format_currency }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-success text-white">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2">Current Month Credits</h6>
+              <h3 class="card-text">₹{{ total_credits|default(0)|int|format_currency }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-danger text-white">
+            <div class="card-body">
+              <h6 class="card-subtitle mb-2">Current Month Debits</h6>
+              <h3 class="card-text">₹{{ total_debits|default(0)|int|format_currency }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Controls and Visualization -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="showTrendLine" checked>
+            <label class="form-check-label" for="showTrendLine">Show Trend Line</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="chartType">
+            <label class="form-check-label" for="chartType">Switch to Bar Chart</label>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="startMonth" class="form-label">Start Month</label>
+          <select class="form-select" id="startMonth">
+            {% for month in salary_data.months %}
+            <option value="{{ loop.index0 }}">{{ month }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label for="endMonth" class="form-label">End Month</label>
+          <select class="form-select" id="endMonth">
+            {% for month in salary_data.months %}
+            <option value="{{ loop.index0 }}" {% if loop.last %}selected{% endif %}>{{ month }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <canvas id="salaryChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-trendline"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const ctx = document.getElementById('salaryChart').getContext('2d');
+    const salaryData = {{ salary_data| tojson
+  }};
+  let chart;
+
+  function updateChart() {
+    const startIndex = parseInt(document.getElementById('startMonth').value);
+    const endIndex = parseInt(document.getElementById('endMonth').value);
+    const showTrendLine = document.getElementById('showTrendLine').checked;
+    const isBarChart = document.getElementById('chartType').checked;
+
+    const filteredMonths = salaryData.months.slice(startIndex, endIndex + 1);
+    const filteredAmounts = salaryData.amounts.slice(startIndex, endIndex + 1);
+
+    const chartType = isBarChart ? 'bar' : 'line';
+    const datasetConfig = {
+      label: 'Monthly Salary',
+      data: filteredAmounts,
+      borderColor: 'rgba(54, 162, 235, 1)',
+      backgroundColor: isBarChart ? 'rgba(54, 162, 235, 0.5)' : 'rgba(54, 162, 235, 0.1)',
+      borderWidth: 2,
+      fill: !isBarChart,
+      tension: 0.4
+    };
+
+    if (showTrendLine && !isBarChart) {
+      datasetConfig.trendlineLinear = {
+        colorMin: "rgba(255, 0, 0, 0.5)",
+        colorMax: "rgba(255, 0, 0, 0.5)",
+        lineStyle: "dotted",
+        width: 2
+      };
+    }
+
+    if (chart) {
+      chart.destroy();
+    }
+
+    chart = new Chart(ctx, {
+      type: chartType,
+      data: {
+        labels: filteredMonths,
+        datasets: [datasetConfig]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Salary Trend Over Time'
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return `₹${context.parsed.y.toLocaleString('en-IN')}`;
+              }
+            }
+          },
+          zoom: {
+            zoom: {
+              wheel: {
+                enabled: true
+              },
+              pinch: {
+                enabled: true
+              },
+              mode: 'x'
+            },
+            pan: {
+              enabled: true,
+              mode: 'x'
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Amount (₹)'
+            },
+            ticks: {
+              callback: function (value) {
+                return '₹' + value.toLocaleString('en-IN');
+              }
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Month'
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Add event listeners for controls
+  document.getElementById('showTrendLine').addEventListener('change', updateChart);
+  document.getElementById('chartType').addEventListener('change', function () {
+    this.nextElementSibling.textContent = this.checked ? 'Switch to Line Chart' : 'Switch to Bar Chart';
+    updateChart();
+  });
+  document.getElementById('startMonth').addEventListener('change', updateChart);
+  document.getElementById('endMonth').addEventListener('change', updateChart);
+
+  // Initial chart render
+  updateChart();
+    });
+</script>
+{% endblock %}
