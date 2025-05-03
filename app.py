@@ -45,7 +45,7 @@ def generate_token(user):
     try:
         payload = {
             'user_id': user.id,
-            'username': user.username,
+            'email': user.email,
             'exp': datetime.utcnow() + app.config['JWT_ACCESS_TOKEN_EXPIRES']
         }
         app.logger.debug(f"Generating token with payload: {payload}")
@@ -76,7 +76,7 @@ def token_required(f):
                 options={
                     'verify_signature': True,
                     'verify_exp': True,
-                    'require': ['exp', 'user_id', 'username']
+                    'require': ['exp', 'user_id', 'email']
                 }
             )
             user = User.get(payload['user_id'])
@@ -97,10 +97,10 @@ def load_user(user_id):
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
     
-    user = User.get_by_username(username)
+    user = User.get_by_email(email)
     
     if user and check_password_hash(user.password, password):
         token = generate_token(user)
@@ -108,35 +108,42 @@ def login():
             'message': 'Login successful',
             'user': {
                 'id': user.id,
-                'username': user.username
+                'email': user.email
             },
             'token': token
         })
     else:
-        return jsonify({'message': 'Invalid username or password'}), 401
+        return jsonify({'message': 'Invalid email or password'}), 401
 
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
-    username = data.get('username')
+    email = data.get('email')
     password = data.get('password')
     confirm_password = data.get('confirm_password')
+    
+    # Validate email format
+    if not email or '@' not in email or '.' not in email:
+        return jsonify({'message': 'Invalid email format'}), 400
+    
+    if not password or len(password) < 6:
+        return jsonify({'message': 'Password must be at least 6 characters long'}), 400
     
     if password != confirm_password:
         return jsonify({'message': 'Passwords do not match'}), 400
     
-    if User.get_by_username(username):
-        return jsonify({'message': 'Username already exists'}), 400
+    if User.get_by_email(email):
+        return jsonify({'message': 'Email already exists'}), 400
     
     hashed_password = generate_password_hash(password)
-    user = User.create(username, hashed_password)
+    user = User.create(email, hashed_password)
     
     token = generate_token(user)
     return jsonify({
         'message': 'Registration successful',
         'user': {
             'id': user.id,
-            'username': user.username
+            'email': user.email
         },
         'token': token
     }), 201
@@ -150,7 +157,7 @@ def logout(user):
 @token_required
 def get_dashboard(user):
     try:
-        app.logger.info(f"Fetching dashboard data for user: {user.username}")
+        app.logger.info(f"Fetching dashboard data for user: {user.email}")
         expenses = Expense.get_by_user(user.id)
         app.logger.debug(f"Found {len(expenses)} expenses")
 
@@ -206,7 +213,7 @@ def get_dashboard(user):
 @token_required
 def add_expense(user):
     try:
-        app.logger.info(f"Adding expense for user: {user.username}")
+        app.logger.info(f"Adding expense for user: {user.email}")
         data = request.get_json()
         app.logger.debug(f"Request data: {data}")
         

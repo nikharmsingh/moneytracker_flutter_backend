@@ -15,7 +15,7 @@ db = client.money_tracker
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = str(user_data['_id'])
-        self.username = user_data['username']
+        self.email = user_data['email']
         self.password = user_data['password']
 
     @staticmethod
@@ -24,14 +24,14 @@ class User(UserMixin):
         return User(user_data) if user_data else None
 
     @staticmethod
-    def get_by_username(username):
-        user_data = db.users.find_one({'username': username})
+    def get_by_email(email):
+        user_data = db.users.find_one({'email': email})
         return User(user_data) if user_data else None
 
     @staticmethod
-    def create(username, password):
+    def create(email, password):
         user_data = {
-            'username': username,
+            'email': email,
             'password': password
         }
         result = db.users.insert_one(user_data)
