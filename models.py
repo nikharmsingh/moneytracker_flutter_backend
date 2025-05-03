@@ -121,6 +121,12 @@ class Category:
     def create(name, user_id=None, is_global=False):
         doc = {'name': name, 'is_global': is_global}
         if not is_global:
+            # Convert user_id to ObjectId if it's not already
+            if user_id and not isinstance(user_id, ObjectId):
+                try:
+                    user_id = ObjectId(user_id)
+                except Exception:
+                    pass
             doc['user_id'] = user_id
         result = db.categories.insert_one(doc)
         return str(result.inserted_id)
