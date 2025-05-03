@@ -140,4 +140,15 @@ class Category:
 
     @staticmethod
     def delete(category_id, user_id):
-        db.categories.delete_one({'_id': ObjectId(category_id), 'user_id': user_id}) 
+        # Convert IDs to ObjectId if needed
+        if not isinstance(category_id, ObjectId):
+            try:
+                category_id = ObjectId(category_id)
+            except Exception:
+                pass
+        if not isinstance(user_id, ObjectId):
+            try:
+                user_id = ObjectId(user_id)
+            except Exception:
+                pass
+        db.categories.delete_one({'_id': category_id, 'user_id': user_id}) 
